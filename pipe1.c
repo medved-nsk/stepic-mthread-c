@@ -3,15 +3,11 @@
 #include <string.h>
 #include <unistd.h>
 
-void whowc()
-{
-
-}
-
 void fork_last(int fdp[2], char *cmd, char **args)
 {
   if (!fork()) {
   close(STDIN_FILENO);
+    fprintf(stderr, "cmd: %s\tset Stdin=%d\n", cmd, fdp[0]);
   dup2(fdp[0], STDIN_FILENO);
   close(fdp[1]);
   close(fdp[0]);
@@ -20,17 +16,21 @@ void fork_last(int fdp[2], char *cmd, char **args)
   } else { }
 }
 
-void fork_mid(int fdp[2], char *cmd, char **args)
+void fork_mid(int *fdp, char *cmd, char **args)
 {
   if (!fork()) {
-    int *pfc = fdp;
     close(STDOUT_FILENO);
-    dup2(fdp[1], STDOUT_FILENO);
+//    dup2(fdp[1], STDOUT_FILENO);
+    fprintf(stderr, "cmd %s\tset StdOut=%d\n", cmd, fdp[1]);
+    dup2(*(fdp+1), STDOUT_FILENO);
     close(STDIN_FILENO);
-    pfc+=2;
+//    close(*(pfc+1)); close(*pfc);
+    int *pfc = fdp+2;
+//    pfc+=2;
 //    dup2(fdp[0], STDIN_FILENO);
-    dup2(*pfc, STDIN_FILENO);
-    close(*(pfc+1)); close(*pfc);
+    fprintf(stderr, "cmd %s\tset StdIn=%d\n", cmd, *(pfc));
+    dup2(*(pfc), STDIN_FILENO);
+//    close(*(pfc+1)); close(*pfc);
     execvp(cmd, args);
     return;
   } else { }
@@ -40,6 +40,7 @@ void fork_first(int fdp[2], char *cmd, char **args)
 {
   if (!fork()) {
   close(STDOUT_FILENO);
+    fprintf(stderr, "cmd %s\tset StdOut=%d\n", cmd, fdp[1]);
   dup2(fdp[1], STDOUT_FILENO);
   close(fdp[1]);
   close(fdp[0]);
@@ -58,6 +59,7 @@ char * get_cmd(char *str, int s, int e)
     if (*c == ' ' && cmd != NULL)
 	{ *c = 0; break; } 
   } // for
+    fprintf(stderr, "cmd: =%s=\n", cmd);
   return cmd;
 }
 
@@ -82,7 +84,7 @@ int main(int argc, char **argv)
   int PFD[8][2]; int *PFC;
   for(i=0; i < 8; i++) {
     pipe(&PFD[i][0]);
-    fprintf(stderr, "pfd[%d]: %d %d\n", i, PFD[i][0], PFD[i][1]);
+//    fprintf(stderr, "pfd[%d]: %d %d\n", i, PFD[i][0], PFD[i][1]);
   }
 
   pipe(pfd);
@@ -104,8 +106,8 @@ int main(int argc, char **argv)
   fork_first(PFD[0], "who", args_who);
 */
   PFC = PFD[0];
-  cmd = NULL; cmd = get_cmd(buf, ixs[j-1], ixs[j]);
-  fprintf(stderr, "cmd last: =%s=\n", cmd);
+  cmd = get_cmd(buf, ixs[j-1], ixs[j]);
+//  fprintf(stderr, "cmd last: =%s=\n", cmd);
   args[0]=cmd;
 //  fork_last(PFD[0], cmd, args); bzero(args, sizeof(char *) * 8);
   fork_last(PFC, cmd, args); bzero(args, sizeof(char *) * 8);
@@ -113,18 +115,19 @@ int main(int argc, char **argv)
 
 // TODO: Pid pair!!
   if (j > 1) {
-    cmd = NULL; cmd = get_cmd(buf, ixs[j-1], ixs[j]);
+    cmd = get_cmd(buf, ixs[j-1], ixs[j]);
     args[0]=cmd;
-    fprintf(stderr, "cmd %i: %s\n", j, cmd);
+//    fprintf(stderr, "cmd %i: %s\n", j, cmd);
     fork_mid(PFC, cmd, args);
     j--;
+    PFC++;
     PFC++;
   }
 
   if (j = 1) { fprintf(stderr, "j=%d\n", j);
-    cmd = NULL; cmd = get_cmd(buf, ixs[j-1], ixs[j]);
+    cmd = get_cmd(buf, ixs[j-1], ixs[j]);
     args[0]=cmd;
-    fprintf(stderr, "cmd 1st: %s\n", cmd);
+//    fprintf(stderr, "cmd 1st: %s\n", cmd);
 //    fork_first(PFD[0], cmd, args);
     fork_first(PFC, cmd, args);
   }
